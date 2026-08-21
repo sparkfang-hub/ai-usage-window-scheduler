@@ -8,7 +8,7 @@ VENV="$PREFIX/venv"
 BIN_DIR="$HOME/.local/bin"
 
 if [ "$(uname -s)" != "Darwin" ]; then
-  echo "AI Window's automatic scheduler currently targets macOS." >&2
+  echo "AI Window's automatic scheduler/widget currently targets macOS." >&2
   exit 1
 fi
 
@@ -20,7 +20,7 @@ fi
 mkdir -p "$PREFIX" "$BIN_DIR"
 python3 -m venv "$VENV"
 "$VENV/bin/python" -m pip install --upgrade pip >/dev/null
-"$VENV/bin/python" -m pip install --upgrade "git+$REPO_URL@$REF"
+"$VENV/bin/python" -m pip install --upgrade "ai-usage-window-scheduler[widget] @ git+$REPO_URL@$REF"
 ln -sf "$VENV/bin/ai-window" "$BIN_DIR/ai-window"
 
 echo
@@ -31,7 +31,7 @@ echo "If 'ai-window' is not found, add this to ~/.zshrc:"
 echo '  export PATH="$HOME/.local/bin:$PATH"'
 echo
 echo "Next:"
+echo "  ai-window dashboard"
+echo "  ai-window install-widget"
 echo "  ai-window doctor claude"
-echo "  ai-window setup claude --work-start 09:00 --lead-minutes 120 --days weekdays --install"
-echo "  ai-window test claude"
-echo "  ai-window status"
+echo "  ai-window setup claude --work-start 05:00 --lead-minutes 0 --days daily --install"

@@ -1,34 +1,68 @@
 ---
 name: ai-usage-window-scheduler
-description: Configure, inspect, and optimize AI usage windows. Use when a user wants to schedule an intentionally tiny provider request before their normal work time, track fixed weekly resets, inspect the next scheduled wake, or manage the local macOS schedule. Never claim a provider supports a wake-triggered rolling window unless its adapter explicitly declares that capability.
+description: Configure and inspect AI provider usage windows, usage percentages, reset times, and macOS menu-bar monitoring. Claude can also use a verified minimal wake schedule and Claude Code rate-limit status-line ingestion.
 ---
 
 # AI Usage Window Scheduler
 
-Use the `ai-window` CLI as the source of truth for local configuration.
+Use this skill when a user wants to coordinate AI usage/reset windows, see quota usage in one place, configure a provider schedule, or run the local menu-bar monitor.
 
-## Core rules
+## Core principles
 
-1. Treat provider rules as provider-specific. Do not assume all AI services use Claude-style rolling sessions.
-2. A wake request is an ordinary minimal request, not a bypass of a usage limit.
-3. For Claude, prefer the minimal Haiku wake implemented by the adapter. The adapter disables tools, MCP access, skills/commands, and conversation persistence.
-4. Weekly reset tracking is informational. A fixed weekly reset is not "started" by the wake request.
-5. Local reset times are estimates when the user may have used the provider elsewhere. For Claude, Settings > Usage is authoritative.
-6. Never store passwords, cookies, session tokens, or API keys in this skill's configuration.
+- Never describe the tool as bypassing or increasing a provider's quota.
+- Treat each provider's current UI/documentation as authoritative.
+- Never request or store passwords, cookies, session tokens, or browser profiles.
+- The dashboard accepts arbitrary provider names; automation remains provider-specific.
+- If a provider does not expose a verified machine-readable usage source, use the universal manual/ingest interface rather than scraping private web state.
 
 ## Common actions
 
-- Configure Claude: `ai-window setup claude --work-start 09:00 --lead-minutes 120 --days weekdays --install`
-- Test immediately: `ai-window test claude`
-- Check prerequisites: `ai-window doctor claude`
-- Inspect schedule: `ai-window status`
-- Remove schedule: `ai-window uninstall-schedule claude`
+### Show all AI usage/reset windows
 
-## Provider capability model
+```bash
+ai-window dashboard
+```
 
-- `claude`: rolling five-hour session wake supported; weekly reset tracking supported.
-- `grok`: tracking-only until a verified compatible trigger exists.
-- `chatgpt`: tracking-only placeholder until a verified compatible trigger exists.
-- `gemini`: tracking-only placeholder until a verified compatible trigger exists.
+### Record usage for any provider
 
-When provider policies change, update only the relevant adapter and documentation rather than hard-coding one provider's reset semantics into the scheduler core.
+```bash
+ai-window usage set <provider> --scope <scope> --used <0-100> --reset-in-minutes <minutes>
+```
+
+or:
+
+```bash
+ai-window usage set <provider> --scope <scope> --remaining <0-100> --reset-at <ISO-8601>
+```
+
+### Run the macOS menu-bar widget
+
+```bash
+ai-window install-widget
+```
+
+The widget refreshes local usage/reset state every 60 seconds.
+
+### Claude automatic usage capture
+
+Claude Code can send its official status-line JSON to:
+
+```bash
+ai-window ingest-claude-statusline
+```
+
+The command captures Claude subscriber `five_hour` and `seven_day` rate-limit percentage/reset fields and prints a compact status line. If the user already has a custom status line, tell them to compose/wrap rather than blindly replace it.
+
+### Claude daily 05:00 wake
+
+```bash
+ai-window setup claude --work-start 05:00 --lead-minutes 0 --days daily --install
+```
+
+Only run `ai-window test claude` when the user intentionally wants an immediate request; testing can itself start a provider usage window.
+
+## Provider support model
+
+- Claude: verified wake adapter; automatic rate-limit ingestion from Claude Code status-line JSON.
+- Grok / ChatGPT / Gemini: universal dashboard works; do not claim automatic quota retrieval until a stable verified source is implemented.
+- Any additional AI: supported by the universal usage state model via `ai-window usage set` or future collector adapters.

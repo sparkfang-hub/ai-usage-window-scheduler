@@ -1,4 +1,3 @@
-from .cli import main
+from ai_window.cli_v2 import main
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+raise SystemExit(main())

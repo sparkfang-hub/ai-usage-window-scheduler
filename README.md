@@ -1,29 +1,32 @@
 # AI Usage Window Scheduler
 
-**Wake the AI before you need the AI.**
+**Wake the AI before you need the AI — and keep every provider's usage/reset window visible.**
 
-AI Usage Window Scheduler (`ai-window`) is a small macOS-first utility for planning provider usage windows. Its first working provider is Claude: it can schedule a deliberately tiny Claude Code request before your normal work time, record the local wake time, estimate the five-hour reset, and track fixed weekly reset times you enter from Claude's **Settings > Usage** page.
+AI Usage Window Scheduler (`ai-window`) is a macOS-first utility for:
 
-> This project does not bypass provider limits. It schedules ordinary requests and tracks published reset behavior. Provider rules can change, so the provider's own Usage page remains authoritative.
+- scheduling verified provider wake requests when a provider's limit window is first-use based;
+- tracking usage percentage and reset time across AI providers;
+- showing the data in one CLI dashboard;
+- showing the same data in a small macOS menu-bar widget;
+- accepting any provider name, not just Claude / Grok / ChatGPT / Gemini.
 
-## Why
+> This project does not bypass provider limits. It schedules ordinary requests and displays usage/reset data that the provider exposes or the user supplies. Provider rules and UIs remain authoritative.
 
-If you normally start heavy Claude work at 09:00 and choose a two-hour lead, `ai-window` can run a tiny wake at 07:00. On macOS it uses your own `launchd` LaunchAgent, so no cloud server, password, cookie, or API key is stored by this project.
+## Provider model
 
-## Provider status
-
-| Provider | Automated wake | Local window estimate | Weekly reset tracking |
+| Provider | Automated wake | Usage/reset dashboard | Automatic usage source |
 |---|---:|---:|---:|
-| Claude | ✅ | ✅ five-hour window | ✅ manual reset time |
-| Grok | — | — | adapter reserved |
-| ChatGPT | — | — | adapter reserved |
-| Gemini | — | — | adapter reserved |
+| Claude | ✅ verified adapter | ✅ | ✅ Claude Code status-line `rate_limits` |
+| Grok | not enabled | ✅ | adapter can be added when a stable source is available |
+| ChatGPT | not enabled | ✅ | adapter can be added when a stable source is available |
+| Gemini | not enabled | ✅ | adapter can be added when a stable source is available |
+| Any custom AI | provider-specific | ✅ | generic ingest/manual data works now |
 
-Adapters are intentionally conservative: a service is not marked wake-capable until its current behavior has been verified.
+The dashboard is provider-agnostic. A service is only marked auto-readable or wake-capable after its behavior/source is verified; the project does not scrape browser cookies or store provider passwords.
 
 ## Requirements
 
-- macOS for automatic scheduling (`launchd`)
+- macOS for `launchd` scheduling and the menu-bar widget
 - Python 3.10+
 - Claude Code CLI installed and logged in for Claude wake requests
 
@@ -35,15 +38,97 @@ After a release is merged to `main`:
 curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/main/scripts/install.sh | bash
 ```
 
-For a development branch, set `AI_WINDOW_REF` before running the matching raw installer.
+For the current development PR/branch:
 
-Make sure `~/.local/bin` is on your PATH:
+```bash
+AI_WINDOW_REF=ai-window-v0.1.0 \
+  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install.sh | bash
+```
+
+Make sure `~/.local/bin` is on your `PATH`:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## 60-second setup
+## Universal usage + reset dashboard
+
+Show all known/configured providers:
+
+```bash
+ai-window dashboard
+```
+
+Store usage for **any** provider, including providers not built into the project:
+
+```bash
+ai-window usage set chatgpt \
+  --scope weekly \
+  --used 68 \
+  --reset-in-minutes 1440
+```
+
+```bash
+ai-window usage set perplexity-ai \
+  --scope primary \
+  --remaining 42 \
+  --reset-at 2026-08-22T09:00:00+08:00
+```
+
+Then:
+
+```bash
+ai-window dashboard
+```
+
+The state is kept locally under `~/.local/state/ai-window/`.
+
+## macOS menu-bar widget
+
+Install the widget as a login LaunchAgent:
+
+```bash
+ai-window install-widget
+```
+
+The menu bar shows a compact `AI <highest-used-%>` title. Open it to see each provider's usage, countdown, reset clock time, scope, and data source. It refreshes every 60 seconds.
+
+Run it manually instead:
+
+```bash
+ai-window widget
+```
+
+Remove it:
+
+```bash
+ai-window uninstall-widget
+```
+
+## Claude: automatic 5-hour + 7-day usage capture
+
+Claude Code officially exposes subscriber rate limits to custom status-line commands after the first API response. The JSON includes:
+
+- `rate_limits.five_hour.used_percentage`
+- `rate_limits.five_hour.resets_at`
+- `rate_limits.seven_day.used_percentage`
+- `rate_limits.seven_day.resets_at`
+
+`ai-window` can consume that JSON directly:
+
+```bash
+ai-window ingest-claude-statusline
+```
+
+To use it as your Claude Code status line, configure Claude Code's status-line command to invoke `ai-window ingest-claude-statusline`. It stores the values locally and prints a compact line such as:
+
+```text
+AI Window | 5h 24% ↻3h 11m | 7d 41% ↻4d 9h
+```
+
+If you already use a custom Claude status line, do not overwrite it blindly; compose or wrap the commands instead.
+
+## Claude wake scheduler
 
 Check Claude Code:
 
@@ -51,87 +136,66 @@ Check Claude Code:
 ai-window doctor claude
 ```
 
-Configure a 09:00 work start, wake Claude 120 minutes earlier on weekdays, and install the Mac schedule:
+Example: wake Claude every day at **05:00**, including weekends:
 
 ```bash
 ai-window setup claude \
-  --work-start 09:00 \
-  --lead-minutes 120 \
-  --days weekdays \
+  --work-start 05:00 \
+  --lead-minutes 0 \
+  --days daily \
   --install
 ```
 
-Test the tiny request immediately:
-
-```bash
-ai-window test claude
-```
-
-Then check **Claude > Settings > Usage** to verify that the session timing behaves as expected for your account.
-
-Inspect your local schedule:
+Inspect everything together:
 
 ```bash
 ai-window status
 ```
 
-## Weekly reset tracking
-
-Claude weekly limits reset at a fixed account-assigned time; they are not started by the wake request. Copy the reset time shown in Claude Settings > Usage into the scheduler, for example:
+Test one wake immediately only when you intentionally want to start a session window:
 
 ```bash
-ai-window setup claude \
-  --weekly-all "sun 14:00" \
-  --weekly-sonnet "sun 14:00"
+ai-window test claude
 ```
 
-Then `ai-window status` shows the next occurrence. Use the actual day/time shown on your account rather than this example.
+## Weekly reset tracking
 
-## What the Claude wake actually runs
+Fixed weekly reset clocks can also be configured when a provider displays them:
 
-The Claude adapter uses Claude Code's non-interactive print mode with a tiny prompt and conservative flags:
+```bash
+ai-window setup claude --weekly-all "sun 14:00" --weekly-sonnet "sun 14:00"
+```
 
-- `--bare` to skip project/skill/plugin/MCP auto-discovery
-- `--model haiku`
-- `--tools ""` and MCP denial so it cannot operate on files or run commands
-- `--disable-slash-commands`
-- `--no-session-persistence`
-- one agentic turn
-
-The prompt asks only for `OK`.
+These configured reset clocks are displayed but are not treated as wake-triggered windows.
 
 ## Commands
 
 ```text
-ai-window setup <provider>        Configure work time, lead time, days and weekly resets
-ai-window doctor [provider]       Check local prerequisites
-ai-window wake <provider>         Run one minimal wake
-ai-window test <provider>         Test a wake immediately
-ai-window status                  Show next wake and local reset estimates
-ai-window install-schedule <p>    Install/update macOS LaunchAgent
-ai-window uninstall-schedule <p>  Remove macOS LaunchAgent
-ai-window config                  Show saved config
+ai-window setup <provider>
+ai-window wake <provider>
+ai-window test <provider>
+ai-window status
+ai-window dashboard [--provider <name>]
+ai-window usage set <provider> ...
+ai-window usage clear <provider> [--scope <scope>]
+ai-window usage show [--provider <name>]
+ai-window ingest-claude-statusline
+ai-window widget
+ai-window install-widget
+ai-window uninstall-widget
+ai-window doctor [provider]
+ai-window install-schedule <provider>
+ai-window uninstall-schedule <provider>
+ai-window config
 ```
 
-## Files created on your Mac
+## Design rules
 
-```text
-~/.config/ai-window/config.json
-~/.local/state/ai-window/state.json
-~/.local/state/ai-window/ai-window.log
-~/Library/LaunchAgents/com.aiwindow.claude.plist
-```
-
-No account credentials are stored by AI Usage Window Scheduler.
-
-## Development
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python -m unittest discover -s tests -v
-```
+1. **No limit bypassing.** Ordinary provider requests only.
+2. **No credential harvesting.** No passwords, cookies, session tokens, or browser-profile scraping.
+3. **Provider-specific truth.** Different AI services have different quota semantics.
+4. **Universal display, conservative automation.** Any provider can appear in the dashboard; automation is enabled only when verified.
+5. **Local-first state.** Usage snapshots and schedule state stay on the user's machine.
 
 ## License
 
