@@ -21,14 +21,14 @@ jobs:
       - run: ai-window --version
       - name: Build standalone macOS app
         env:
-          VERSION: 0.3.1
+          VERSION: 0.3.2
         run: |
           chmod +x scripts/build_macos_app.sh
           ./scripts/build_macos_app.sh
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Usage-Window-Scheduler-macOS-arm64-v0.3.1
+          name: AI-Usage-Window-Scheduler-macOS-arm64-v0.3.2
           path: |
             dist/*.dmg
             dist/*.zip
