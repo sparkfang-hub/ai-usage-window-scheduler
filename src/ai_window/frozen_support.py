@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import plistlib
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -10,9 +11,100 @@ from typing import Any
 
 from ai_window.cli import ProviderConfig, log_path, parse_hhmm, state_dir, wake_time
 
+APP_BUNDLE_NAME = "AI Usage Window Scheduler.app"
+
 
 def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
+
+
+def current_app_bundle() -> Path | None:
+    """Return the running .app bundle for a frozen macOS build."""
+    if not is_frozen():
+        return None
+    try:
+        executable = Path(sys.executable).resolve()
+        bundle = executable.parents[2]
+    except (IndexError, OSError):
+        return None
+    return bundle if bundle.suffix == ".app" else None
+
+
+def running_from_disk_image() -> bool:
+    bundle = current_app_bundle()
+    return bool(bundle and str(bundle).startswith("/Volumes/"))
+
+
+def cleanup_legacy_installation(current_bundle: Path | None = None) -> list[str]:
+    """Remove known pre-standalone installs while preserving config/state.
+
+    This intentionally deletes only paths created by earlier AI Window installers.
+    User configuration (~/.config/ai-window) and usage/state
+    (~/.local/state/ai-window) are never touched.
+    """
+    current_bundle = current_bundle or current_app_bundle()
+    removed: list[str] = []
+
+    # Never mutate installed copies while executing directly from a mounted DMG.
+    if current_bundle and str(current_bundle).startswith("/Volumes/"):
+        return removed
+
+    home = Path.home()
+    known_app_copies = [
+        home / "Applications" / APP_BUNDLE_NAME,
+        Path("/Applications") / APP_BUNDLE_NAME,
+    ]
+
+    current_resolved = None
+    if current_bundle:
+        try:
+            current_resolved = current_bundle.resolve()
+        except OSError:
+            current_resolved = current_bundle
+
+    for candidate in known_app_copies:
+        if not candidate.exists():
+            continue
+        try:
+            candidate_resolved = candidate.resolve()
+        except OSError:
+            candidate_resolved = candidate
+        if current_resolved is not None and candidate_resolved == current_resolved:
+            continue
+
+        # A normal DMG install lands in /Applications. In that case, remove the
+        # legacy ~/Applications copy created by the shell installer. Do not try
+        # to delete another /Applications copy when running from a user-level app.
+        if current_resolved and str(current_resolved).startswith("/Applications/"):
+            if candidate == home / "Applications" / APP_BUNDLE_NAME:
+                shutil.rmtree(candidate, ignore_errors=True)
+                if not candidate.exists():
+                    removed.append(str(candidate))
+
+    # v0.1-v0.3 shell installers created a private venv/runtime here. Standalone
+    # builds no longer need it.
+    legacy_runtime = home / ".local" / "share" / "ai-window"
+    if legacy_runtime.exists():
+        shutil.rmtree(legacy_runtime, ignore_errors=True)
+        if not legacy_runtime.exists():
+            removed.append(str(legacy_runtime))
+
+    # Remove only the symlink that points into the legacy runtime; never delete a
+    # user-owned unrelated executable named ai-window.
+    legacy_cli = home / ".local" / "bin" / "ai-window"
+    if legacy_cli.is_symlink():
+        try:
+            target = legacy_cli.resolve(strict=False)
+        except OSError:
+            target = Path("")
+        if str(legacy_runtime) in str(target):
+            try:
+                legacy_cli.unlink()
+                removed.append(str(legacy_cli))
+            except OSError:
+                pass
+
+    return removed
 
 
 def _runtime_args(*args: str) -> list[str]:
