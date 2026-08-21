@@ -1,201 +1,128 @@
 # AI Usage Window Scheduler
 
-**Wake the AI before you need the AI — and keep every provider's usage/reset window visible.**
+**Wake the AI before you need the AI — and keep usage/reset windows visible in one place.**
 
-AI Usage Window Scheduler (`ai-window`) is a macOS-first utility for:
+AI Usage Window Scheduler is a macOS-first utility for people who use several AI tools and do not want to keep checking quota/reset pages manually.
 
-- scheduling verified provider wake requests when a provider's limit window is first-use based;
-- tracking usage percentage and reset time across AI providers;
-- showing the data in one CLI dashboard;
-- showing the same data in a small macOS menu-bar widget;
-- accepting any provider name, not just Claude / Grok / ChatGPT / Gemini.
+## Normal setup: one field, done
 
-> This project does not bypass provider limits. It schedules ordinary requests and displays usage/reset data that the provider exposes or the user supplies. Provider rules and UIs remain authoritative.
+Normal users do **not** need CLI flags.
 
-## Provider model
+Install the app, then macOS shows one native setup window:
+
+```text
+每天要幾點自動啟動 Claude？
+
+[ 05:00 ]
+
+      [儲存]
+```
+
+That is it.
+
+- The time is the actual wake time.
+- It runs every day, including weekends.
+- No weekday selector.
+- No lead-time setting.
+- No model selector.
+- The menu-bar usage widget starts automatically.
+- Open `AI Usage Window Scheduler.app` later to change the time.
+- The menu-bar widget also includes **Change wake time…**.
+
+### Current development installer
+
+```bash
+AI_WINDOW_REF=ai-window-v0.1.0 \
+  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install_simple.sh | bash
+```
+
+The installer creates:
+
+```text
+~/Applications/AI Usage Window Scheduler.app
+```
+
+After the first setup, normal users should not need Terminal again.
+
+## Menu-bar dashboard
+
+The menu bar displays usage/reset information from every provider that has data available.
+
+Example:
+
+```text
+AI 68%
+
+Claude · 41% used · reset 3h 12m
+  5h · 24% used · reset 17:00
+  7d · 41% used · reset Sun 14:00
+
+ChatGPT · 68% used · reset 2d 3h
+Grok · 32% used · reset 5h
+Gemini · usage n/a
+
+Claude wake · daily 05:00
+Change wake time…
+```
+
+The dashboard layer is provider-agnostic. Claude, Grok, ChatGPT, Gemini, Perplexity, Copilot, Cursor, or future AI providers can all use the same usage/reset record model.
+
+## Provider support
 
 | Provider | Automated wake | Usage/reset dashboard | Automatic usage source |
 |---|---:|---:|---:|
 | Claude | ✅ verified adapter | ✅ | ✅ Claude Code status-line `rate_limits` |
-| Grok | not enabled | ✅ | adapter can be added when a stable source is available |
-| ChatGPT | not enabled | ✅ | adapter can be added when a stable source is available |
-| Gemini | not enabled | ✅ | adapter can be added when a stable source is available |
-| Any custom AI | provider-specific | ✅ | generic ingest/manual data works now |
+| Grok | not enabled yet | ✅ | adapter pending a stable source |
+| ChatGPT | not enabled yet | ✅ | adapter pending a stable source |
+| Gemini | not enabled yet | ✅ | adapter pending a stable source |
+| Any custom AI | provider-specific | ✅ | generic ingest/manual source |
 
-The dashboard is provider-agnostic. A service is only marked auto-readable or wake-capable after its behavior/source is verified; the project does not scrape browser cookies or store provider passwords.
+The project deliberately does not harvest browser cookies, passwords, session tokens, or private browser profiles.
 
-## Requirements
+## Claude usage capture
 
-- macOS for `launchd` scheduling and the menu-bar widget
-- Python 3.10+
-- Claude Code CLI installed and logged in for Claude wake requests
+Claude Code exposes subscriber rate-limit information to custom status-line commands. AI Window can ingest:
 
-## Install
+- five-hour used percentage;
+- five-hour reset time;
+- seven-day used percentage;
+- seven-day reset time.
 
-After a release is merged to `main`:
+The universal widget then displays those values alongside other AI providers.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/main/scripts/install.sh | bash
-```
+## Advanced CLI
 
-For the current development PR/branch:
+The CLI remains available for developers and provider-adapter work, but it is no longer the intended normal-user setup path.
 
-```bash
-AI_WINDOW_REF=ai-window-v0.1.0 \
-  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install.sh | bash
-```
-
-Make sure `~/.local/bin` is on your `PATH`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-## Universal usage + reset dashboard
-
-Show all known/configured providers:
-
-```bash
+```text
 ai-window dashboard
-```
-
-Store usage for **any** provider, including providers not built into the project:
-
-```bash
-ai-window usage set chatgpt \
-  --scope weekly \
-  --used 68 \
-  --reset-in-minutes 1440
-```
-
-```bash
-ai-window usage set perplexity-ai \
-  --scope primary \
-  --remaining 42 \
-  --reset-at 2026-08-22T09:00:00+08:00
-```
-
-Then:
-
-```bash
-ai-window dashboard
-```
-
-The state is kept locally under `~/.local/state/ai-window/`.
-
-## macOS menu-bar widget
-
-Install the widget as a login LaunchAgent:
-
-```bash
-ai-window install-widget
-```
-
-The menu bar shows a compact `AI <highest-used-%>` title. Open it to see each provider's usage, countdown, reset clock time, scope, and data source. It refreshes every 60 seconds.
-
-Run it manually instead:
-
-```bash
-ai-window widget
-```
-
-Remove it:
-
-```bash
-ai-window uninstall-widget
-```
-
-## Claude: automatic 5-hour + 7-day usage capture
-
-Claude Code officially exposes subscriber rate limits to custom status-line commands after the first API response. The JSON includes:
-
-- `rate_limits.five_hour.used_percentage`
-- `rate_limits.five_hour.resets_at`
-- `rate_limits.seven_day.used_percentage`
-- `rate_limits.seven_day.resets_at`
-
-`ai-window` can consume that JSON directly:
-
-```bash
+ai-window usage set <provider> ...
+ai-window usage clear <provider> ...
 ai-window ingest-claude-statusline
-```
-
-To use it as your Claude Code status line, configure Claude Code's status-line command to invoke `ai-window ingest-claude-statusline`. It stores the values locally and prints a compact line such as:
-
-```text
-AI Window | 5h 24% ↻3h 11m | 7d 41% ↻4d 9h
-```
-
-If you already use a custom Claude status line, do not overwrite it blindly; compose or wrap the commands instead.
-
-## Claude wake scheduler
-
-Check Claude Code:
-
-```bash
-ai-window doctor claude
-```
-
-Example: wake Claude every day at **05:00**, including weekends:
-
-```bash
-ai-window setup claude \
-  --work-start 05:00 \
-  --lead-minutes 0 \
-  --days daily \
-  --install
-```
-
-Inspect everything together:
-
-```bash
-ai-window status
-```
-
-Test one wake immediately only when you intentionally want to start a session window:
-
-```bash
-ai-window test claude
-```
-
-## Weekly reset tracking
-
-Fixed weekly reset clocks can also be configured when a provider displays them:
-
-```bash
-ai-window setup claude --weekly-all "sun 14:00" --weekly-sonnet "sun 14:00"
-```
-
-These configured reset clocks are displayed but are not treated as wake-triggered windows.
-
-## Commands
-
-```text
-ai-window setup <provider>
+ai-window widget
+ai-window install-widget
+ai-window setup <provider> ...
 ai-window wake <provider>
 ai-window test <provider>
 ai-window status
-ai-window dashboard [--provider <name>]
-ai-window usage set <provider> ...
-ai-window usage clear <provider> [--scope <scope>]
-ai-window usage show [--provider <name>]
-ai-window ingest-claude-statusline
-ai-window widget
-ai-window install-widget
-ai-window uninstall-widget
 ai-window doctor [provider]
-ai-window install-schedule <provider>
-ai-window uninstall-schedule <provider>
-ai-window config
 ```
+
+Only use `ai-window test claude` when you intentionally want to make an immediate Claude request, because the test itself may start a usage window.
 
 ## Design rules
 
-1. **No limit bypassing.** Ordinary provider requests only.
-2. **No credential harvesting.** No passwords, cookies, session tokens, or browser-profile scraping.
-3. **Provider-specific truth.** Different AI services have different quota semantics.
-4. **Universal display, conservative automation.** Any provider can appear in the dashboard; automation is enabled only when verified.
-5. **Local-first state.** Usage snapshots and schedule state stay on the user's machine.
+1. **No quota bypassing.** The scheduler only sends ordinary provider requests.
+2. **No credential harvesting.** No provider passwords, cookies, browser sessions, or API keys are collected by the scheduler.
+3. **Provider-specific truth.** Each AI provider can use different quota semantics.
+4. **Universal display, conservative automation.** Any provider can appear in the dashboard; automated retrieval/wake behavior is enabled only after it is verified.
+5. **Local-first.** Configuration and usage snapshots stay on the user's Mac.
+
+## Development
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## License
 
