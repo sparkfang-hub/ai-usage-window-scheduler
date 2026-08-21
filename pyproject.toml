@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-usage-window-scheduler"
+version = "0.1.0"
+description = "Schedule and track AI usage reset windows, starting with Claude's five-hour session window."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "sparkfang-hub"}]
+keywords = ["claude", "ai", "scheduler", "usage", "macos", "launchd"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.scripts]
+ai-window = "ai_window.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
