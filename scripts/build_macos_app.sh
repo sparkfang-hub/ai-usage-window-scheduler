@@ -44,7 +44,7 @@ codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 
 # Smoke-test the actual frozen executable, not only the Python source package.
-BUNDLED_VERSION="$($BIN --version)"
+BUNDLED_VERSION="$("$BIN" --version)"
 if [[ "$BUNDLED_VERSION" != "$VERSION" ]]; then
   echo "Bundled app version mismatch: expected $VERSION, got $BUNDLED_VERSION" >&2
   exit 1
