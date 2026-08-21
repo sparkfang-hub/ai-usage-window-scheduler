@@ -29,6 +29,7 @@ python -m PyInstaller \
 
 APP="$DIST/$APP_NAME.app"
 PLIST="$APP/Contents/Info.plist"
+BIN="$APP/Contents/MacOS/$APP_NAME"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" "$PLIST"
@@ -41,6 +42,13 @@ PLIST="$APP/Contents/Info.plist"
 # certificate can replace this step for notarized public releases.
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
+
+# Smoke-test the actual frozen executable, not only the Python source package.
+BUNDLED_VERSION="$($BIN --version)"
+if [[ "$BUNDLED_VERSION" != "$VERSION" ]]; then
+  echo "Bundled app version mismatch: expected $VERSION, got $BUNDLED_VERSION" >&2
+  exit 1
+fi
 
 ZIP="$DIST/AI-Usage-Window-Scheduler-macOS-arm64-v${VERSION}.zip"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
