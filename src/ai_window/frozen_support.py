@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import os
 import plistlib
 import subprocess
@@ -20,11 +21,21 @@ def _runtime_args(*args: str) -> list[str]:
     return [sys.executable, "-m", "ai_window", *args]
 
 
-def _path_env() -> str:
+def runtime_path_env() -> str:
+    """Return a GUI-safe PATH that can find common AI CLI installations.
+
+    Finder-launched macOS apps do not inherit the interactive shell PATH, so a
+    CLI that works in Terminal can otherwise appear to be missing. Keep this
+    resolver local-only and credential-free.
+    """
     home = str(Path.home())
     parts = [
         f"{home}/.local/bin",
+        f"{home}/.claude/bin",
         f"{home}/.npm-global/bin",
+        f"{home}/.bun/bin",
+        f"{home}/.volta/bin",
+        f"{home}/Library/pnpm",
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "/usr/bin",
@@ -32,10 +43,33 @@ def _path_env() -> str:
         "/usr/sbin",
         "/sbin",
     ]
+
+    # nvm installs Node-based CLIs under a versioned directory that Finder does
+    # not know about. Prefer newer paths first but include all discovered bins.
+    nvm_bins = sorted(
+        glob.glob(f"{home}/.nvm/versions/node/*/bin"),
+        reverse=True,
+    )
+    parts.extend(nvm_bins)
+
     inherited = os.environ.get("PATH", "")
     if inherited:
-        parts.append(inherited)
-    return ":".join(parts)
+        parts.extend(inherited.split(":"))
+
+    # Preserve order while removing duplicates/empty entries.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for part in parts:
+        if part and part not in seen:
+            seen.add(part)
+            unique.append(part)
+    return ":".join(unique)
+
+
+def activate_runtime_path() -> str:
+    path = runtime_path_env()
+    os.environ["PATH"] = path
+    return path
 
 
 def _bootstrap(label: str, path: Path) -> tuple[bool, str]:
@@ -77,7 +111,7 @@ def install_claude_schedule(cfg: ProviderConfig) -> tuple[bool, str]:
         "StandardOutPath": str(log_path()),
         "StandardErrorPath": str(log_path()),
         "ProcessType": "Background",
-        "EnvironmentVariables": {"HOME": str(Path.home()), "PATH": _path_env()},
+        "EnvironmentVariables": {"HOME": str(Path.home()), "PATH": runtime_path_env()},
     }
     with path.open("wb") as fh:
         plistlib.dump(data, fh, sort_keys=False)
@@ -100,7 +134,7 @@ def install_widget_agent() -> tuple[bool, str]:
         "ProcessType": "Interactive",
         "StandardOutPath": str(log_path()),
         "StandardErrorPath": str(log_path()),
-        "EnvironmentVariables": {"HOME": str(Path.home()), "PATH": _path_env()},
+        "EnvironmentVariables": {"HOME": str(Path.home()), "PATH": runtime_path_env()},
     }
     with path.open("wb") as fh:
         plistlib.dump(data, fh, sort_keys=False)
