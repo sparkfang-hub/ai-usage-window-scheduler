@@ -13,7 +13,12 @@ from ai_window.cli import (
     save_config,
     wake_time,
 )
-from ai_window.frozen_support import activate_runtime_path, install_claude_schedule, is_frozen
+from ai_window.frozen_support import (
+    activate_runtime_path,
+    install_claude_schedule,
+    is_frozen,
+    running_from_disk_image,
+)
 
 
 def _osascript(script: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -106,6 +111,13 @@ def run_onboarding(*, notify: bool = True) -> int:
         print("The simple setup window currently supports macOS only.", file=sys.stderr)
         return 1
 
+    if is_frozen() and running_from_disk_image():
+        _alert(
+            "請先把 AI Usage Window Scheduler 拖到 Applications 資料夾，再從 Applications 打開。\n\n"
+            "不要直接從 DMG 裡執行，否則排程會指向之後被退出的磁碟映像。"
+        )
+        return 1
+
     # Finder-launched apps receive a minimal PATH. Add common CLI locations so
     # an existing Claude installation that works in Terminal is discoverable.
     activate_runtime_path()
@@ -131,6 +143,7 @@ def run_onboarding(*, notify: bool = True) -> int:
 
     _alert(
         f"設定完成！\n\n每天 {wake_at}（包含週末）會自動啟動 Claude。\n\n"
+        "舊版安裝已自動整理；你的時間與 usage 資料會保留。\n\n"
         "接下來請看 Mac 最上方選單列的「AI」小工具；之後也可以從那裡修改時間。"
     )
     if notify:
