@@ -13,6 +13,11 @@ def main() -> int:
     if args:
         return cli_main(args)
 
+    if bool(getattr(sys, "frozen", False)):
+        from ai_window.frozen_support import cleanup_legacy_installation
+
+        cleanup_legacy_installation()
+
     result = onboarding_main()
     if result == 0 and bool(getattr(sys, "frozen", False)):
         from ai_window.frozen_support import install_widget_agent
