@@ -18,4 +18,8 @@ Latest validated artifact files:
 - `AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.zip`
 - `SHA256SUMS.txt`
 
+Validated DMG SHA-256:
+
+`fe40f7001fbfc7cce01d4fb3920e6cb44591a4e292fe378b98b392a69edccb6d`
+
 The app is not Apple-notarized yet. First launch on another Mac may require Control-click / right-click → Open until Developer ID signing and notarization are configured.
