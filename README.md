@@ -45,7 +45,7 @@ AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.zip
 SHA256SUMS.txt
 ```
 
-A tagged release (`v*`) automatically publishes these files to GitHub Releases.
+The standalone bundle is CI-validated by running the frozen executable before the DMG is created. A tagged release (`v*`) automatically publishes the files to GitHub Releases.
 
 The current build is ad-hoc signed but not Apple-notarized yet. Until a Developer ID certificate is configured, macOS may require **Control-click / right-click → Open** the first time. No Terminal command is required.
 
