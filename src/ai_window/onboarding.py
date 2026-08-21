@@ -94,6 +94,11 @@ def configure_daily_claude(wake_at: str) -> tuple[bool, str]:
     )
     config.providers["claude"] = cfg
     save_config(config)
+
+    if bool(getattr(sys, "frozen", False)):
+        from ai_window.frozen_support import install_claude_schedule
+
+        return install_claude_schedule(cfg)
     return install_schedule("claude", cfg)
 
 
