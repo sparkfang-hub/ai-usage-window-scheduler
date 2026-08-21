@@ -13,6 +13,7 @@ from ai_window.cli import (
     save_config,
     wake_time,
 )
+from ai_window.frozen_support import activate_runtime_path, install_claude_schedule, is_frozen
 
 
 def _osascript(script: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -95,9 +96,7 @@ def configure_daily_claude(wake_at: str) -> tuple[bool, str]:
     config.providers["claude"] = cfg
     save_config(config)
 
-    if bool(getattr(sys, "frozen", False)):
-        from ai_window.frozen_support import install_claude_schedule
-
+    if is_frozen():
         return install_claude_schedule(cfg)
     return install_schedule("claude", cfg)
 
@@ -106,6 +105,10 @@ def run_onboarding(*, notify: bool = True) -> int:
     if sys.platform != "darwin":
         print("The simple setup window currently supports macOS only.", file=sys.stderr)
         return 1
+
+    # Finder-launched apps receive a minimal PATH. Add common CLI locations so
+    # an existing Claude installation that works in Terminal is discoverable.
+    activate_runtime_path()
 
     wake_at = prompt_wake_time()
     if wake_at is None:
@@ -119,10 +122,17 @@ def run_onboarding(*, notify: bool = True) -> int:
     doctor_ok, doctor_message = provider_doctor("claude")
     if not doctor_ok:
         _alert(
-            f"每天 {wake_at} 的排程已設定完成。\n\n但目前找不到可用的 Claude Code CLI：\n{doctor_message}"
+            f"每天 {wake_at} 的排程已設定完成。\n\n"
+            "但 App 目前仍找不到 Claude Code CLI。\n"
+            "請在 Terminal 執行 `which claude`，把顯示的路徑回報給我們。\n\n"
+            f"檢查結果：{doctor_message}"
         )
         return 0
 
+    _alert(
+        f"設定完成！\n\n每天 {wake_at}（包含週末）會自動啟動 Claude。\n\n"
+        "接下來請看 Mac 最上方選單列的「AI」小工具；之後也可以從那裡修改時間。"
+    )
     if notify:
         _notify(f"已設定：每天 {wake_at} 自動啟動 Claude")
     return 0
