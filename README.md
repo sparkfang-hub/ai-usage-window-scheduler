@@ -33,7 +33,7 @@ That is it.
 
 ```bash
 AI_WINDOW_REF=ai-window-v0.1.0 \
-  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install_simple.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install.sh | bash
 ```
 
 The installer creates:
