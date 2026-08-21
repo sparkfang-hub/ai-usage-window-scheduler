@@ -40,8 +40,8 @@ Normal users do **not** need CLI flags or Terminal after downloading the app.
 GitHub Actions builds an Apple Silicon standalone package containing its own Python runtime:
 
 ```text
-AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.dmg
-AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.zip
+AI-Usage-Window-Scheduler-macOS-arm64-v0.3.2.dmg
+AI-Usage-Window-Scheduler-macOS-arm64-v0.3.2.zip
 SHA256SUMS.txt
 ```
 
