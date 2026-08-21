@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="AI Usage Window Scheduler"
 BUNDLE_ID="com.sparkfang.aiusagewindowscheduler"
-VERSION="${VERSION:-0.3.0}"
+VERSION="${VERSION:-0.3.2}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 BUILD="$ROOT/build"
