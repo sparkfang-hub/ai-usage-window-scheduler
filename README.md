@@ -4,21 +4,27 @@
 
 AI Usage Window Scheduler is a macOS-first utility for people who use several AI tools and do not want to keep checking quota/reset pages manually.
 
-## Normal setup: one field, done
+## Normal setup: download, enter one time, done
 
-Normal users do **not** need CLI flags.
-
-Install the app, then macOS shows one native setup window:
+The intended public install flow is:
 
 ```text
+Download DMG
+   ↓
+Drag AI Usage Window Scheduler.app to Applications
+   ↓
+Open the app
+   ↓
 每天要幾點自動啟動 Claude？
 
 [ 05:00 ]
 
       [儲存]
+   ↓
+Done
 ```
 
-That is it.
+Normal users do **not** need CLI flags or Terminal after downloading the app.
 
 - The time is the actual wake time.
 - It runs every day, including weekends.
@@ -26,23 +32,22 @@ That is it.
 - No lead-time setting.
 - No model selector.
 - The menu-bar usage widget starts automatically.
-- Open `AI Usage Window Scheduler.app` later to change the time.
+- Open the app later to change the time.
 - The menu-bar widget also includes **Change wake time…**.
 
-### Current development installer
+### macOS build artifacts
 
-```bash
-AI_WINDOW_REF=ai-window-v0.1.0 \
-  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install.sh | bash
-```
-
-The installer creates:
+GitHub Actions builds an Apple Silicon standalone package containing its own Python runtime:
 
 ```text
-~/Applications/AI Usage Window Scheduler.app
+AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.dmg
+AI-Usage-Window-Scheduler-macOS-arm64-v0.3.0.zip
+SHA256SUMS.txt
 ```
 
-After the first setup, normal users should not need Terminal again.
+A tagged release (`v*`) automatically publishes these files to GitHub Releases.
+
+The current build is ad-hoc signed but not Apple-notarized yet. Until a Developer ID certificate is configured, macOS may require **Control-click / right-click → Open** the first time. No Terminal command is required.
 
 ## Menu-bar dashboard
 
@@ -90,6 +95,17 @@ Claude Code exposes subscriber rate-limit information to custom status-line comm
 
 The universal widget then displays those values alongside other AI providers.
 
+## Development installer
+
+Before the first public DMG release, the development branch can still be installed with:
+
+```bash
+AI_WINDOW_REF=ai-window-v0.1.0 \
+  curl -fsSL https://raw.githubusercontent.com/sparkfang-hub/ai-usage-window-scheduler/ai-window-v0.1.0/scripts/install_simple.sh | bash
+```
+
+This path is only for development/testing; the packaged DMG is the intended normal-user distribution.
+
 ## Advanced CLI
 
 The CLI remains available for developers and provider-adapter work, but it is no longer the intended normal-user setup path.
@@ -109,6 +125,12 @@ ai-window doctor [provider]
 ```
 
 Only use `ai-window test claude` when you intentionally want to make an immediate Claude request, because the test itself may start a usage window.
+
+## Release engineering
+
+`./scripts/build_macos_app.sh` creates the standalone `.app`, `.zip`, `.dmg`, and SHA-256 checksums. `.github/workflows/release-macos.yml` runs the same build on an Apple Silicon macOS runner and publishes tagged versions.
+
+A future release can replace ad-hoc signing with Developer ID signing + Apple notarization without changing the app architecture.
 
 ## Design rules
 
