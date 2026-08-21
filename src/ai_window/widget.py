@@ -26,8 +26,9 @@ def run_widget() -> int:
         print("Menu-bar widget dependency is missing. Reinstall with: pip install 'ai-usage-window-scheduler[widget]'", flush=True)
         return 1
 
-    # Delayed import avoids a circular import while cli.py lazily imports this module.
-    from ai_window.cli import load_config, load_state
+    # Delayed imports avoid circular imports while the CLI lazily imports this module.
+    from ai_window.cli import load_config, load_state, wake_time
+    from ai_window.onboarding import run_onboarding
 
     class AIWindowMenuBar(rumps.App):
         def __init__(self) -> None:
@@ -36,13 +37,27 @@ def run_widget() -> int:
             self.refresh(None)
             self._timer.start()
 
+        def change_wake_time(self, _sender: Any) -> None:
+            run_onboarding()
+            self.refresh(None)
+
         def refresh(self, _sender: Any) -> None:
             now = datetime.now().astimezone()
-            snapshot = build_usage_snapshot(load_config(), load_state(), now)
+            config = load_config()
+            snapshot = build_usage_snapshot(config, load_state(), now)
             self.menu.clear()
 
             used_values = [row["max_used_percent"] for row in snapshot if row.get("max_used_percent") is not None]
             self.title = f"AI {max(used_values):.0f}%" if used_values else "AI"
+
+            claude_cfg = config.providers.get("claude")
+            if claude_cfg:
+                wake_at = wake_time(claude_cfg.work_start, claude_cfg.lead_minutes)
+                self.menu.add(rumps.MenuItem(f"Claude wake · daily {wake_at}"))
+            else:
+                self.menu.add(rumps.MenuItem("Claude wake · not configured"))
+            self.menu.add(rumps.MenuItem("Change wake time…", callback=self.change_wake_time))
+            self.menu.add(None)
 
             for row in snapshot:
                 parent = rumps.MenuItem(_summary_title(row, now))
