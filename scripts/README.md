@@ -1,0 +1,1 @@
+`install.sh` is the standard v0.3 one-field macOS installer. It installs the local runtime, creates `~/Applications/AI Usage Window Scheduler.app`, starts the menu-bar widget, and opens the native wake-time dialog. `install_simple.sh` is retained temporarily as a compatibility alias while the v0.3 flow is validated.
